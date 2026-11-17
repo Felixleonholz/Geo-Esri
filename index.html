@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rhein-Main Story Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#ffffff; --ink:#1d2530; --muted:#5d6876; --line:#e2ded5;
+    --eu:#003399; --gold:#e8b100; --accent:#c8463d; --green:#2f7d5b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+  #map{position:fixed;inset:0 0 0 42%;z-index:0}
+  #story{position:relative;width:42%;z-index:1;padding:0 28px 40vh}
+  header{min-height:70vh;display:flex;flex-direction:column;justify-content:center;padding:40px 0}
+  header .tag{color:var(--eu);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:13px}
+  h1{font-size:42px;line-height:1.1;margin:10px 0 14px}
+  h2{font-size:26px;margin:4px 0 12px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin:0 0 60vh;
+        box-shadow:0 2px 10px rgba(0,0,0,.04);opacity:.45;transition:opacity .3s}
+  .step.active{opacity:1;border-left:5px solid var(--eu)}
+  .num{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+  .headline{font-family:Georgia,serif;font-size:24px;line-height:1.25;border-top:3px solid var(--ink);border-bottom:1px solid var(--ink);padding:12px 0;margin:8px 0}
+  .q{background:#eef2fb;border-left:4px solid var(--eu);padding:12px 14px;font-weight:600;font-size:18px}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+  .kpi{background:var(--bg);border-radius:8px;padding:10px 12px}
+  .kpi b{display:block;font-size:24px}
+  .kpi span{font-size:13px;color:var(--muted)}
+  .bar{display:grid;grid-template-columns:150px 1fr 54px;gap:8px;align-items:center;font-size:14px;margin:6px 0}
+  .bar i{display:block;height:14px;border-radius:3px;background:var(--eu)}
+  .bar i.r{background:var(--accent)} .bar i.g{background:var(--green)}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+  th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .day{display:inline-block;background:var(--gold);color:#000;font-weight:700;border-radius:4px;padding:1px 8px;font-size:13px}
+  .check{font-size:12px;color:var(--accent);font-weight:600}
+  .note{font-size:13px;color:var(--muted);margin-top:10px}
+  .pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:13px;margin:2px}
+  .eval{display:grid;grid-template-columns:1fr;gap:8px}
+  .eval div{border-radius:8px;padding:10px 12px}
+  .plus{background:#e7f3ec}.minus{background:#fbe9e7}.future{background:#eef2fb}
+  .label{background:none;border:none;box-shadow:none;font-weight:700;font-size:13px;color:var(--ink);text-shadow:0 0 3px #fff,0 0 3px #fff}
+  footer{font-size:12px;color:var(--muted)}
+  @media (max-width:820px){
+    #map{inset:0 0 55% 0}
+    #story{width:100%;padding:45vh 16px 30vh}
+    header{min-height:auto}
+    h1{font-size:32px}
+    .step{margin-bottom:40vh}
+    .bar{grid-template-columns:110px 1fr 46px}
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<main id="story">
+  <header>
+    <div class="tag">Geo-Story Map · EU-Region</div>
+    <h1>Rhein-Main: Reich, vernetzt – und trotzdem gefördert?</h1>
+    <p>EU-Fördermittel und polyzentrische Raumentwicklung in der Metropolregion FrankfurtRheinMain</p>
+    <p class="note">↓ Scrollen – die Karte folgt der Geschichte</p>
+  </header>
+
+  <!-- 1 INTRO -->
+  <section class="step" data-view="intro">
+    <div class="num">1 · Intro</div>
+    <div class="headline">„Hier eigene aktuelle Schlagzeile einfügen“</div>
+    <p class="note">Ideen: Wohnungsnot &amp; Mieten in Frankfurt · Pendlerstau / S-Bahn-Chaos · Rechenzentren-Boom (Strom, Fläche) · Fluglärm FRA</p>
+    <p class="check">⚠ Echte Schlagzeile mit Quelle + Datum verwenden (Screenshot)</p>
+  </section>
+
+  <!-- 2 FRAGE -->
+  <section class="step" data-view="question">
+    <div class="num">2 · Forschungsfrage</div>
+    <div class="q">Stärkt EU-Förderung im Rhein-Main-Gebiet die ganze Region – oder vor allem das ohnehin starke Zentrum Frankfurt?</div>
+    <p class="note">Alternative: „Braucht eine der reichsten Regionen Europas überhaupt EU-Geld?“</p>
+  </section>
+
+  <!-- 3 REGION -->
+  <section class="step" data-view="region">
+    <div class="num">3 · Die Region</div>
+    <h2>Metropolregion FrankfurtRheinMain</h2>
+    <div class="kpis">
+      <div class="kpi"><b>≈ 5,8 Mio.</b><span>Einwohner</span></div>
+      <div class="kpi"><b>3</b><span>Bundesländer: HE, RP, BY</span></div>
+      <div class="kpi"><b>≈ 14.800 km²</b><span>Fläche</span></div>
+      <div class="kpi"><b>≈ 60 Mio.</b><span>Fluggäste FRA / Jahr</span></div>
+    </div>
+    <span class="pill">EZB</span><span class="pill">Börse</span><span class="pill">DE-CIX</span><span class="pill">Chemie (Höchst)</span><span class="pill">ESA/ESOC</span>
+    <p class="check">⚠ Zahlen vor dem Vortrag mit aktueller Quelle prüfen</p>
+  </section>
+
+  <!-- 4 POLYZENTRISCH -->
+  <section class="step" data-view="poly">
+    <div class="num">4 · Polyzentrisch?</div>
+    <h2>Viele Zentren statt einer Großstadt</h2>
+    <div class="bar"><span>Frankfurt</span><i style="width:100%"></i><span>775k</span></div>
+    <div class="bar"><span>Wiesbaden</span><i style="width:37%"></i><span>285k</span></div>
+    <div class="bar"><span>Mainz</span><i style="width:29%"></i><span>220k</span></div>
+    <div class="bar"><span>Darmstadt</span><i style="width:21%"></i><span>165k</span></div>
+    <div class="bar"><span>Offenbach</span><i style="width:17%"></i><span>135k</span></div>
+    <div class="bar"><span>Hanau</span><i style="width:13%"></i><span>100k</span></div>
+    <div class="bar"><span>Aschaffenburg</span><i style="width:9%"></i><span>72k</span></div>
+    <p class="note">Karte: Kreisgröße = Einwohner (gerundet)</p>
+  </section>
+
+  <!-- 5 PENDLER -->
+  <section class="step" data-view="commute">
+    <div class="num">5 · Verflechtung</div>
+    <h2>Alle Wege führen nach Frankfurt</h2>
+    <div class="kpis">
+      <div class="kpi"><b>≈ 390.000</b><span>Einpendler nach Frankfurt / Tag</span></div>
+      <div class="kpi"><b>&gt; 2 / 3</b><span>der Frankfurter Jobs von Einpendlern</span></div>
+    </div>
+    <p class="note">Folge: Verkehr, Mieten, Flächendruck im Zentrum – Chance für Mittelzentren</p>
+    <p class="check">⚠ Pendlerzahl: Bundesagentur für Arbeit / Pendleratlas prüfen</p>
+  </section>
+
+  <!-- 6 EU-VERGLEICH -->
+  <section class="step" data-view="europe">
+    <div class="num">6 · Im EU-Vergleich</div>
+    <h2>Reich im Norden, arm im Südosten</h2>
+    <p class="note">BIP pro Kopf in KKS, EU = 100 (Richtwerte, NUTS-2)</p>
+    <div class="bar"><span>Darmstadt (Rhein-Main)</span><i style="width:100%"></i><span>≈ 150</span></div>
+    <div class="bar"><span>EU-Durchschnitt</span><i class="g" style="width:67%"></i><span>100</span></div>
+    <div class="bar"><span>Nord-Est (Rumänien)</span><i class="r" style="width:30%"></i><span>≈ 45</span></div>
+    <p>➜ Rhein-Main = <b>„stärker entwickelte Region“</b> → niedrigste Förderquote (max. 40 % EU-Anteil), wenig Geld pro Kopf</p>
+    <p class="check">⚠ Werte aus Eurostat (nama_10r_2gdp) aktualisieren</p>
+  </section>
+
+  <!-- 7 FÖRDERTÖPFE -->
+  <section class="step" data-view="funds">
+    <div class="num">7 · EU-Fördermittel</div>
+    <h2>Welche Töpfe wirken hier?</h2>
+    <table>
+      <tr><th>Fonds</th><th>Ziel in Rhein-Main</th></tr>
+      <tr><td><b>EFRE</b> Hessen 2021–27</td><td>Innovation &amp; Forschung, Klimaschutz, Stadtentwicklung</td></tr>
+      <tr><td><b>ESF+</b></td><td>Ausbildung, Qualifizierung, Integration</td></tr>
+      <tr><td><b>Interreg</b> (NWE, Europe)</td><td>Austausch mit anderen Regionen, z. B. Klima/Mobilität</td></tr>
+      <tr><td><b>CEF / TEN-T</b></td><td>Verkehrsknoten: Rhein-Alpen- &amp; Rhein-Donau-Korridor</td></tr>
+      <tr><td><i>Kohäsionsfonds</i></td><td><i>nicht für Deutschland (nur ärmere Staaten)</i></td></tr>
+    </table>
+    <p class="check">⚠ Projektliste: kohesio.ec.europa.eu + efre.hessen.de („Liste der Vorhaben“) → 2–3 echte Projekte mit €-Betrag auf der Karte markieren</p>
+  </section>
+
+  <!-- 8 PROJEKTE -->
+  <section class="step" data-view="projects">
+    <div class="num">8 · Förderprojekte (Vorlage)</div>
+    <h2>Wo landet das Geld?</h2>
+    <table>
+      <tr><th>Projekt</th><th>Fonds</th><th>€</th><th>Raumwirkung</th></tr>
+      <tr><td>Projekt A (Zentrum Frankfurt)</td><td>EFRE</td><td>…</td><td>Zentrum ↑</td></tr>
+      <tr><td>Projekt B (Mittelzentrum, z. B. Offenbach/Hanau)</td><td>EFRE</td><td>…</td><td>Polyzentrik ↑</td></tr>
+      <tr><td>Projekt C (Darmstadt, Forschung)</td><td>EFRE/ESF+</td><td>…</td><td>Wissen ↑</td></tr>
+    </table>
+    <p class="note">Leitfrage-Test: Liegen die Projekte eher im Zentrum oder verteilt? → Antwort auf die Forschungsfrage</p>
+  </section>
+
+  <!-- 9 EXKURSION -->
+  <section class="step" data-view="trip">
+    <div class="num">9 · Geo-Exkursion (3 Tage)</div>
+    <h2>Vor Ort nachprüfen</h2>
+    <p><span class="day">Tag 1</span> <b>Frankfurt – das Zentrum</b><br>
+      Hbf → EZB (Ostend) → Mainufer/Skyline → Europaviertel · <i>Kartierung: Nutzung &amp; Mieten</i></p>
+    <p><span class="day">Tag 2</span> <b>Darmstadt &amp; Offenbach – die Nebenzentren</b><br>
+      ESOC/TU Darmstadt → Lincoln-Siedlung (Konversion) → Hafen Offenbach (Strukturwandel) · <i>Interview Stadtplanung</i></p>
+    <p><span class="day">Tag 3</span> <b>Flughafen, Industrie, Wiesbaden/Mainz</b><br>
+      Industriepark Höchst → Flughafen FRA (Besuchertour) → Wiesbaden/Mainz (Landespolitik) · <i>Pendlerzählung S-Bahn</i></p>
+    <table>
+      <tr><th>Kosten pro Person (Schätzung)</th><th>€</th></tr>
+      <tr><td>Bahn hin/zurück (Gruppen-/Sparpreis)</td><td>≈ 80</td></tr>
+      <tr><td>2 Nächte Jugendherberge Frankfurt inkl. Frühstück</td><td>≈ 80</td></tr>
+      <tr><td>ÖPNV vor Ort (Deutschlandticket / Gruppenticket)</td><td>≈ 15</td></tr>
+      <tr><td>Führungen / Eintritte</td><td>≈ 20</td></tr>
+      <tr><td>Verpflegung</td><td>≈ 45</td></tr>
+      <tr><th>Summe</th><th>≈ 240</th></tr>
+    </table>
+    <p class="check">⚠ Preise für eure Abfahrtsstadt und Termin aktuell nachschauen</p>
+  </section>
+
+  <!-- 10 BEWERTUNG -->
+  <section class="step" data-view="eval">
+    <div class="num">10 · Bewertung</div>
+    <h2>Erfolge, Probleme, Zukunft</h2>
+    <div class="eval">
+      <div class="plus"><b>Erfolge</b><br>Forschung &amp; Innovation gestärkt · Klimaprojekte · Nebenzentren (Darmstadt, Offenbach) gewinnen Profil</div>
+      <div class="minus"><b>Herausforderungen</b><br>Wenig Geld im Vergleich zur Wirtschaftskraft · Wohnungsnot &amp; Pendlerströme bleiben · Frankfurt zieht weiter alles an</div>
+      <div class="future"><b>Zukunft</b><br>Bahnausbau (Fernbahntunnel, S-Bahn) · Rechenzentren &amp; Energie · Wohnungsbau im Umland</div>
+    </div>
+    <div class="q" style="margin-top:12px">Fazit zur Forschungsfrage: …</div>
+  </section>
+
+  <footer>
+    Kartengrundlage © OpenStreetMap-Mitwirkende, © CARTO · Entwurf als Vorlage für die Esri-Story Map · Alle Zahlen gerundet, vor dem Vortrag prüfen
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const map = L.map('map',{zoomControl:true,scrollWheelZoom:false}).setView([50.05,8.6],9);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+  attribution:'© OpenStreetMap, © CARTO',maxZoom:18}).addTo(map);
+
+const FFM=[50.1109,8.6821];
+const cities=[
+  ['Frankfurt',FFM,775],['Wiesbaden',[50.0782,8.2398],285],['Mainz',[49.9929,8.2473],220],
+  ['Darmstadt',[49.8728,8.6512],165],['Offenbach',[50.0956,8.7761],135],
+  ['Hanau',[50.1264,8.9283],100],['Aschaffenburg',[49.9769,9.1478],72]
+];
+const layers={};
+function group(name){return layers[name]=L.layerGroup();}
+
+// Städte
+const g1=group('cities');
+cities.forEach(([n,ll,p])=>{
+  L.circleMarker(ll,{radius:Math.sqrt(p)*0.9,color:'#003399',weight:2,fillColor:'#003399',fillOpacity:.25}).addTo(g1);
+  L.marker(ll,{icon:L.divIcon({className:'label',html:n+'<br><span style="font-weight:400">'+p+'k</span>',iconSize:[100,30],iconAnchor:[-8,10]})}).addTo(g1);
+});
+
+// Pendler
+const g2=group('commute');
+cities.slice(1).forEach(([n,ll,p])=>{
+  L.polyline([ll,FFM],{color:'#c8463d',weight:2+p/40,opacity:.7,dashArray:'6 6'}).addTo(g2);
+});
+L.circleMarker(FFM,{radius:26,color:'#c8463d',weight:3,fillOpacity:.15}).addTo(g2);
+
+// Europa-Vergleich
+const g3=group('europe');
+[['Rhein-Main ≈150',[50.0,8.6],'#003399'],['Nord-Est (RO) ≈45',[47.2,26.8],'#c8463d'],['Bukarest',[44.43,26.1],'#888']]
+.forEach(([n,ll,c])=>{
+  L.circleMarker(ll,{radius:12,color:c,fillColor:c,fillOpacity:.6}).addTo(g3);
+  L.marker(ll,{icon:L.divIcon({className:'label',html:n,iconSize:[160,20],iconAnchor:[-14,8]})}).addTo(g3);
+});
+
+// Förder-Platzhalter
+const g4=group('projects');
+[['Projekt A',FFM],['Projekt B',[50.1264,8.9283]],['Projekt C',[49.8728,8.6512]]].forEach(([n,ll])=>{
+  L.marker(ll,{icon:L.divIcon({className:'label',html:'<span style="background:#e8b100;padding:2px 6px;border-radius:4px">€ '+n+'</span>',iconSize:[110,20],iconAnchor:[-6,22]})}).addTo(g4);
+  L.circleMarker(ll,{radius:8,color:'#000',fillColor:'#e8b100',fillOpacity:1,weight:1}).addTo(g4);
+});
+
+// Exkursion
+const g5=group('trip');
+const days=[
+  {c:'#e8b100',pts:[['Hbf',[50.1071,8.6638]],['EZB',[50.1096,8.7027]],['Mainufer',[50.1065,8.6800]],['Europaviertel',[50.1080,8.6400]],['Jugendherberge',[50.1063,8.6910]]]},
+  {c:'#2f7d5b',pts:[['ESOC',[49.8710,8.6224]],['TU Darmstadt',[49.8770,8.6560]],['Lincoln-Siedlung',[49.8560,8.6510]],['Hafen Offenbach',[50.1057,8.7790]]]},
+  {c:'#c8463d',pts:[['Industriepark Höchst',[50.0905,8.5300]],['Flughafen FRA',[50.0379,8.5622]],['Wiesbaden',[50.0782,8.2398]],['Mainz',[49.9929,8.2473]]]}
+];
+days.forEach((d,i)=>{
+  L.polyline(d.pts.map(p=>p[1]),{color:d.c,weight:4}).addTo(g5);
+  d.pts.forEach(([n,ll],j)=>{
+    L.circleMarker(ll,{radius:6,color:'#fff',weight:2,fillColor:d.c,fillOpacity:1}).bindTooltip('Tag '+(i+1)+': '+n).addTo(g5);
+  });
+});
+
+const views={
+  intro:   {c:[50.11,8.68],z:12,l:[]},
+  question:{c:[50.05,8.6],z:9,l:['cities']},
+  region:  {c:[50.0,8.7],z:9,l:['cities']},
+  poly:    {c:[50.02,8.65],z:10,l:['cities']},
+  commute: {c:[50.04,8.6],z:10,l:['cities','commute']},
+  europe:  {c:[48.5,16],z:5,l:['europe']},
+  funds:   {c:[50.0,8.7],z:9,l:['cities']},
+  projects:{c:[50.0,8.75],z:10,l:['cities','projects']},
+  trip:    {c:[50.0,8.5],z:10,l:['trip']},
+  eval:    {c:[50.02,8.65],z:9,l:['cities','commute','projects']}
+};
+
+let current=null;
+function show(key){
+  if(key===current) return; current=key;
+  const v=views[key];
+  Object.entries(layers).forEach(([n,g])=> v.l.includes(n)?g.addTo(map):map.removeLayer(g));
+  map.flyTo(v.c,v.z,{duration:1.2});
+}
+const steps=document.querySelectorAll('.step');
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      steps.forEach(s=>s.classList.remove('active'));
+      e.target.classList.add('active');
+      show(e.target.dataset.view);
+    }
+  });
+},{rootMargin:'-45% 0px -45% 0px'});
+steps.forEach(s=>io.observe(s));
+show('question');
+</script>
+</body>
+</html>
