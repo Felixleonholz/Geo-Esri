@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rhein-Main Story Map</title>
+<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+<style>
+  :root{
+    --ink:#15202b; --muted:#5d6876; --card:rgba(255,255,255,.94); --line:#e3e0d8;
+    --eu:#003399; --gold:#f2b705; --red:#d2453b; --green:#2f8f63; --he:#003399; --rp:#2f8f63; --by:#d2453b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#02040a}
+  #map{position:fixed;inset:0;background:radial-gradient(ellipse at center,#0d1b3a 0%,#02040a 70%)}
+  #stars{position:fixed;inset:0;pointer-events:none;opacity:1;transition:opacity 2s;
+    background-image:radial-gradient(1px 1px at 10% 20%,#fff8,transparent),radial-gradient(1px 1px at 80% 30%,#fff9,transparent),
+    radial-gradient(1.5px 1.5px at 30% 80%,#fffa,transparent),radial-gradient(1px 1px at 60% 60%,#fff7,transparent),
+    radial-gradient(1px 1px at 90% 85%,#fff9,transparent),radial-gradient(1.5px 1.5px at 45% 10%,#fffb,transparent),
+    radial-gradient(1px 1px at 15% 55%,#fff6,transparent),radial-gradient(1px 1px at 70% 95%,#fff8,transparent)}
+  #stars.off{opacity:0}
+
+  /* Titel */
+  #title{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:16vh;text-align:center;color:#fff;pointer-events:none;transition:opacity 1s,transform 1.2s}
+  #title.hide{opacity:0;transform:scale(1.15)}
+  #title .tag{letter-spacing:.3em;text-transform:uppercase;font-size:13px;color:var(--gold);font-weight:700}
+  #title h1{font-size:clamp(34px,6vw,72px);margin:.15em 0;line-height:1.05;text-shadow:0 4px 30px #000}
+  #title p{font-size:clamp(15px,2vw,20px);opacity:.85;margin:0}
+
+  /* Karte (Textfeld) */
+  #card{position:fixed;left:24px;top:24px;max-height:calc(100vh - 120px);width:min(420px,calc(100vw - 32px));overflow:auto;
+    background:#fff;border-radius:16px;padding:26px 26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.35);
+    transform:translateX(-120%);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+  #card.show{transform:none}
+  #card .num{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--eu)}
+  #card h2{font-size:30px;line-height:1.1;margin:6px 0 14px}
+  #card .in{opacity:0;transform:translateY(18px);animation:up .6s forwards}
+  @keyframes up{to{opacity:1;transform:none}}
+  .q{background:#eef2fb;border-left:5px solid var(--eu);padding:14px 16px;font-weight:700;font-size:20px;border-radius:6px}
+  .headline{font-family:Georgia,serif;font-size:26px;line-height:1.2;border-top:4px solid var(--ink);border-bottom:1px solid var(--ink);padding:14px 0}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+  .kpi{background:#f3f1ec;border-radius:10px;padding:12px}
+  .kpi b{display:block;font-size:28px;line-height:1.1;color:var(--eu)}
+  .kpi span{font-size:13px;color:var(--muted)}
+  .bar{display:grid;grid-template-columns:120px 1fr 52px;gap:8px;align-items:center;font-size:14px;margin:7px 0}
+  .bar i{display:block;height:16px;border-radius:4px;background:var(--eu);width:0;transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+  .bar i.r{background:var(--red)} .bar i.g{background:var(--green)}
+  .fund{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
+  .fund .ico{flex:0 0 46px;height:46px;border-radius:10px;display:grid;place-items:center;font-weight:800;color:#fff;font-size:13px}
+  .fund.no{opacity:.5}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:7px 4px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted)}
+  .day{display:inline-block;background:var(--gold);font-weight:800;border-radius:6px;padding:2px 10px;font-size:13px}
+  .stop{display:flex;gap:10px;align-items:center;margin:8px 0}
+  .stop>b{flex:0 0 26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:13px}
+  .legend span{display:inline-flex;align-items:center;gap:6px;margin-right:12px;font-size:14px}
+  .legend i{width:14px;height:14px;border-radius:3px;display:inline-block}
+  .eval>div{border-radius:10px;padding:12px 14px;margin:8px 0}
+  .plus{background:#e5f4ec}.minus{background:#fbe8e6}.future{background:#eef2fb}
+  .src{font-size:11.5px;color:var(--muted);margin-top:12px;border-top:1px solid var(--line);padding-top:6px}
+  .hint{font-size:12px;color:var(--red);font-weight:600;margin-top:10px}
+  body.nohints .hint{display:none}
+  .muted{color:var(--muted);font-size:14px}
+
+  /* Bilder */
+  #photos{position:fixed;right:24px;top:24px;bottom:96px;width:min(360px,30vw);display:flex;flex-direction:column;gap:12px;pointer-events:none}
+  .ph{position:relative;flex:1;min-height:0;border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,.4);
+      opacity:0;transform:translateX(60px) rotate(2deg);animation:phin .8s cubic-bezier(.2,.8,.2,1) forwards;background:#111}
+  .ph img{width:100%;height:100%;object-fit:cover;animation:kb 14s ease-out forwards}
+  .ph figcaption{position:absolute;left:0;right:0;bottom:0;padding:22px 12px 9px;color:#fff;font-size:13px;font-weight:600;
+      background:linear-gradient(transparent,rgba(0,0,0,.75))}
+  .ph.out{animation:phout .4s forwards}
+  @keyframes phin{to{opacity:1;transform:none}}
+  @keyframes phout{to{opacity:0;transform:translateX(60px)}}
+  @keyframes kb{from{transform:scale(1.18) translate(2%,2%)}to{transform:scale(1)}}
+
+  /* Navigation */
+  #nav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:16px;padding:8px 10px 8px 12px;background:#0a1223;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  #dots{display:flex;gap:6px;flex-wrap:wrap;max-width:40vw}
+  #dots i{width:9px;height:9px;border-radius:50%;background:#fff5;cursor:pointer;transition:.3s}
+  #dots i.on{background:var(--gold);transform:scale(1.4)}
+  button{font:inherit;cursor:pointer;border:none;border-radius:999px}
+  #prev{visibility:hidden;background:#1f2a40;color:#fff;padding:12px 18px}
+  #next{background:var(--gold);color:#000;font-weight:800;font-size:18px;padding:14px 34px;box-shadow:0 8px 30px rgba(242,183,5,.45);animation:pulse 2s infinite}
+  #next:hover{transform:translateY(-2px)}
+  @keyframes pulse{50%{box-shadow:0 8px 40px rgba(242,183,5,.85)}}
+  #prog{position:fixed;top:0;left:0;height:4px;background:var(--gold);transition:width .6s;z-index:5}
+
+  /* Kartenmarker */
+  .lab{font-weight:800;font-size:13px;color:#fff;background:rgba(10,20,40,.82);padding:4px 9px;border-radius:999px;white-space:nowrap;
+       transform:scale(0);animation:pop .5s cubic-bezier(.3,1.6,.5,1) forwards;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  .lab small{font-weight:500;opacity:.8}
+  .lab.gold{background:var(--gold);color:#000}
+  .lab.red{background:var(--red)}
+  .lab.big{font-size:16px;padding:6px 14px}
+  @keyframes pop{to{transform:scale(1)}}
+  .pin{width:34px;height:34px;border-radius:50%;background:var(--gold);display:grid;place-items:center;font-weight:900;border:3px solid #fff;
+       box-shadow:0 0 0 0 rgba(242,183,5,.7);transform:scale(0);animation:pop .5s cubic-bezier(.3,1.6,.5,1) forwards,ring 1.8s 0.6s infinite}
+  @keyframes ring{70%{box-shadow:0 0 0 18px rgba(242,183,5,0)}100%{box-shadow:0 0 0 0 rgba(242,183,5,0)}}
+  #card,#photos,#nav,#title,#prog{z-index:2}
+  .esri-attribution{font-size:10px}
+  .esri-attribution__sources::before{content:'Karte: ArcGIS (Esri) · Daten: ';font-weight:700;color:#15202b}
+  .circ{border-radius:50%;transform:scale(0);transition:transform .9s cubic-bezier(.3,1.5,.5,1)}
+  .circ.on{transform:scale(1)}
+  .circ.blue{background:rgba(0,51,153,.32);border:2px solid #003399}
+  .circ.gold{background:rgba(242,183,5,.5);border:2px solid #b07f00}
+  .circ.dot{background:#fff;border:2px solid #d2453b;transition:none;transform:none}
+  .esri-view .esri-view-surface--inset-outline:focus::after{outline:none}
+
+  @media (max-width:900px){
+    #card{top:auto;bottom:88px;max-height:48vh;left:12px;width:calc(100vw - 24px);padding:18px}
+    #card h2{font-size:23px}
+    #photos{left:12px;right:12px;top:12px;bottom:auto;height:20vh;width:auto;flex-direction:row}
+    #dots{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="stars"></div>
+<div id="prog"></div>
+
+<div id="title">
+  <div class="tag">Geo-Story Map · EU-Region</div>
+  <h1>Rhein-Main</h1>
+  <p>Reich, vernetzt – und trotzdem EU-gefördert?</p>
+</div>
+
+<article id="card"></article>
+<div id="photos"></div>
+
+<nav id="nav">
+  <button id="prev">← Zurück</button>
+  <div id="dots"></div>
+  <button id="next">Start →</button>
+</nav>
+
+<script>
+  // Flüssiger: 3D-Karte nicht in doppelter Retina-Auflösung rendern
+  try{ const dpr=window.devicePixelRatio||1; if(dpr>1) Object.defineProperty(window,'devicePixelRatio',{get:()=>1,configurable:true}); }catch(e){}
+</script>
+<script src="https://js.arcgis.com/4.30/init.js"></script>
+<script src="region.js"></script>
+<script>
+/* ---------- Daten ---------- */
+const P = (lng,lat)=>[lng,lat];
+const FFM = P(8.6821,50.1109);
+const CITIES = [ // Einwohner in Tausend, Stand 31.12.2025 (citypopulation.de / Statist. Landesämter)
+  ['Frankfurt',FFM,761],['Wiesbaden',P(8.2398,50.0782),289],['Mainz',P(8.2473,49.9929),224],
+  ['Darmstadt',P(8.6512,49.8728),168],['Offenbach',P(8.7761,50.0956),133],['Hanau',P(8.9283,50.1264),99],
+  ['Aschaffenburg',P(9.1478,49.9769),73],['Gießen',P(8.6784,50.5841),89],['Worms',P(8.3613,49.6341),87],['Fulda',P(9.6753,50.5558),66]
+];
+const ECON = [
+  ['EZB',P(8.7027,50.1096)],['Börse',P(8.6766,50.1153)],['DE-CIX / Rechenzentren',P(8.7340,50.1180)],
+  ['Industriepark Höchst',P(8.5300,50.0905)],['Flughafen FRA',P(8.5622,50.0379)]
+];
+// EFRE Hessen 2021–27, Liste der Vorhaben (Stand 26.01.2026): EU-Mittel in Mio. € je Ort (eigene Auswertung)
+const EFRE_ORTE = [
+  ['Darmstadt',P(8.6512,49.8728),19.79,16],['Gießen',P(8.6784,50.5841),8.45,9],['Frankfurt',FFM,6.82,16],['Offenbach',P(8.7761,50.0956),6.11,3],
+  ['Wiesbaden',P(8.2398,50.0782),1.40,4],['Geisenheim',P(7.9672,49.9844),1.31,1],['Heppenheim',P(8.6436,49.6414),0.67,3],['Friedberg',P(8.7553,50.3353),0.69,2],
+  ['Kriftel',P(8.4697,50.0839),0.60,1],['Bad Vilbel',P(8.7361,50.1781),0.55,1],['Pfungstadt',P(8.6033,49.8056),0.51,1],['Groß-Gerau',P(8.4822,49.9214),0.50,1],
+  ['Lampertheim',P(8.4719,49.5978),0.48,1],['Viernheim',P(8.5794,49.5394),0.48,1],['Rüsselsheim',P(8.4119,49.9931),0.40,1],['Dieburg',P(8.8394,49.8986),0.40,1],
+  ['Hanau',P(8.9169,50.1328),0.38,2],['Dreieich',P(8.6944,50.0194),0.37,1],['Langen',P(8.6697,49.9894),0.34,2],['Maintal',P(8.8333,50.15),0.29,1]
+];
+const PROJ = [ // [Ort, Koordinate, Kurzname, EU-Mio, Gesamt-Mio, Ziel]
+  ['Offenbach',P(8.7480,50.1000),'EVO: Abdampf-Nutzung im Energiewerk',4.96,12.40,'Klima'],
+  ['Darmstadt',P(8.6797,49.8628),'TU Darmstadt: Metal Energy Hub',2.40,6.00,'Innovation'],
+  ['Darmstadt',P(8.6790,49.9311),'GSI: Teilchenbeschleuniger HELIAC',2.00,5.00,'Forschung'],
+  ['Frankfurt',P(8.6670,50.1255),'Goethe-Uni: Gründerzentrum Unibator',1.31,3.26,'Gründungen'],
+  ['Frankfurt',P(8.7480,50.1130),'InterXion: Abwärme Rechenzentrum',1.02,2.55,'Klima']
+];
+const STATIONS = [ // Reihenfolge = Besuchsreihenfolge; Tag, Farbe
+  {n:'Europaviertel',c:P(8.6400,50.1080),d:1,eu:null,img:'europaviertel',
+   was:'Neues Stadtviertel ohne EU-Geld – Kontrast (kein Eintrag in der EFRE-Liste [18])',wirk:'Wachstumsdruck im Zentrum: Mieten +6,8 % [1]',erh:'Kartierung: Nutzungen & Mietangebote'},
+  {n:'Goethe-Uni: Unibator',c:P(8.6670,50.1255),d:1,eu:1.31,img:'goethe',
+   was:'EFRE-Gründerzentrum auf dem Campus Westend [18]',wirk:'Gründungen aus der Forschung fördern [18]',erh:'Interview: Wie viele Gründungen, wie viele Jobs?'},
+  {n:'Rechenzentrum Fechenheim',c:P(8.7480,50.1130),d:1,eu:1.02,img:'decix',
+   was:'Abwärme eines Rechenzentrums heizt Gebäude [18]',wirk:'Abwärme nutzen statt verpuffen – Klimaschutz [18]',erh:'Förderschild fotografieren · Interview Betreiber'},
+  {n:'GSI Helmholtzzentrum',c:P(8.6790,49.9311),d:2,eu:2.00,img:'gsi',
+   was:'Neuer Teilchenbeschleuniger HELIAC [18]',wirk:'Spitzenforschung in Darmstadt stärken (eigene Einschätzung)',erh:'Führung · Interview: Kooperationen mit Firmen?'},
+  {n:'TU Darmstadt, Lichtwiese',c:P(8.6797,49.8628),d:2,eu:2.40,img:'tu',
+   was:'„Metal Energy Hub“ – Energiespeicher aus Metall [18]',wirk:'Netzwerk aus Forschung, Industrie und Politik [18]',erh:'Passantenbefragung: Kennen Sie EU-Förderung hier?'},
+  {n:'Energiewerk Offenbach',c:P(8.7480,50.1000),d:3,eu:4.96,img:'offenbach',
+   was:'Abdampf der Turbinen wird Fernwärme [18]',wirk:'Größtes EU-Projekt der Region: Schritt zur Klimaneutralität [18]',erh:'Werksbesichtigung · Interview EVO'}
+];
+const DAYC = {1:'#f2b705',2:'#2f8f63',3:'#d2453b'};
+
+/* ---------- Karte: ArcGIS Maps SDK for JavaScript (Esri) ---------- */
+let view=null, Graphic=null, PointC=null, ready=false;
+const L={};                       // GraphicsLayer je Ebene
+let BASEMAP={};
+let curBase=null, tripColor='#f2b705';
+
+/* Hilfen */
+const fc = f=>({type:'FeatureCollection',features:f});
+const line = c=>({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:c}});
+function arc(a,b,n=40){ // gebogene Linie
+  const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2, dx=b[0]-a[0], dy=b[1]-a[1];
+  const cx=mx-dy*0.25, cy=my+dx*0.25, out=[];
+  for(let i=0;i<=n;i++){const t=i/n;out.push([(1-t)*(1-t)*a[0]+2*(1-t)*t*cx+t*t*b[0],(1-t)*(1-t)*a[1]+2*(1-t)*t*cy+t*t*b[1]]);}
+  return out;
+}
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+let anims=[];
+function animate(ms,fn,done){const s=performance.now();const o={stop:false};anims.push(o);
+  (function f(n){if(o.stop)return;const t=Math.min(1,(n-s)/ms);fn(ease(t),t);if(t<1)requestAnimationFrame(f);else done&&done();})(s);return o;}
+let timers=[];const later=(fn,ms)=>timers.push(setTimeout(fn,ms));
+function stopAnims(){anims.forEach(a=>a.stop=true);anims=[];timers.forEach(clearTimeout);timers=[];}
+const rgba=(hex,a)=>{const n=parseInt(hex.slice(1),16);return [n>>16&255,n>>8&255,n&255,a];};
+
+/* GeoJSON -> ArcGIS-Geometrien (mit Vereinfachung) */
+function simplify(pts,tol=0.004){ if(pts.length<5) return pts; const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
+  const st=[[0,pts.length-1]]; while(st.length){ const [a,b]=st.pop(); let md=0,mi=-1; const [x1,y1]=pts[a],[x2,y2]=pts[b],dx=x2-x1,dy=y2-y1,L2=dx*dx+dy*dy||1e-12;
+    for(let i=a+1;i<b;i++){ const t=Math.max(0,Math.min(1,((pts[i][0]-x1)*dx+(pts[i][1]-y1)*dy)/L2)); const ex=x1+t*dx-pts[i][0], ey=y1+t*dy-pts[i][1], d=ex*ex+ey*ey; if(d>md){md=d;mi=i;} }
+    if(md>tol*tol){ keep[mi]=1; st.push([a,mi],[mi,b]); } }
+  return pts.filter((_,i)=>keep[i]); }
+function ringCW(r){let s=0;for(let i=0;i<r.length-1;i++)s+=(r[i+1][0]-r[i][0])*(r[i+1][1]+r[i][1]);return s>0?r:[...r].reverse();}
+function polyRings(g){const polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;const out=[];
+  polys.forEach(p=>p.forEach((r,i)=>{const q=simplify(r); if(q.length>=4) out.push(i===0?ringCW(q):ringCW(q).reverse());}));return out;}
+const polygon=g=>({type:'polygon',rings:polyRings(g),spatialReference:{wkid:4326}});
+const polyline=paths=>({type:'polyline',paths,spatialReference:{wkid:4326}});
+const point=c=>({type:'point',longitude:c[0],latitude:c[1]});
+const fillSym=(hex,a,outline)=>({type:'simple-fill',color:rgba(hex,a),outline:outline||{color:[0,0,0,0],width:0}});
+const lineSym=(hex,w,a=1)=>({type:'simple-line',color:rgba(hex,a),width:w,cap:'round',join:'round'});
+const dotSym=(hex,size,a=.45,stroke)=>({type:'simple-marker',style:'circle',color:rgba(hex,a),size,outline:{color:rgba(stroke||hex,1),width:1.5}});
+function setG(layer,list){L[layer].removeAll();L[layer].addMany(list.map(g=>new Graphic(g)));}
+
+/* Ebenen ein-/ausblenden (weich) */
+const LAYERMAP={'reg-fill':'regFill','reg-line':'regLine','eu-fill':'eu','eu-line':'eu','flows':'flows'};
+function vis(id,on,val){const l=L[LAYERMAP[id]||id];if(!l)return;const from=l.visible?l.opacity:0,to=on?(val??1):0;
+  if(on) l.visible=true; animate(600,t=>l.opacity=from+(to-from)*t,()=>{ if(!on) l.visible=false; });}
+function base(mode){ if(curBase===mode||!view) return; curBase=mode; view.map.basemap=BASEMAP[mode]; }
+
+/* Kompatibilitäts-Schicht für die Folien (Quellen & Farben) */
+const map={
+  stop(){},
+  getSource(id){return {setData(gj){
+    const feats=gj.type==='FeatureCollection'?gj.features:[gj];
+    if(id==='dots') setG('dots',feats.map(f=>({geometry:point(f.geometry.coordinates),symbol:dotSym('#ffffff',7,1,'#d2453b')})));
+    else if(id==='trip') setG('trip',feats.map(f=>({geometry:polyline(f.geometry.type==='MultiLineString'?f.geometry.coordinates:[f.geometry.coordinates]),symbol:lineSym(tripColor,5)})));
+    else if(id==='tripdone') setG('tripdone',feats.map(f=>({geometry:polyline([f.geometry.coordinates]),symbol:lineSym(f.properties.c||'#999',4)})));
+    else if(id==='outline') setG('outline',feats.flatMap(f=>{const p=polyline(f.geometry.type==='MultiLineString'?f.geometry.coordinates:[f.geometry.coordinates]);
+      return [{geometry:p,symbol:lineSym('#f2b705',11,.35)},{geometry:p,symbol:lineSym('#f2b705',3.5)}];}));
+  }};},
+  setPaintProperty(id,prop,val){ if(id==='trip'&&prop==='line-color') tripColor=val; if(id==='tripdone'&&prop==='line-opacity'&&L.tripdone) L.tripdone.opacity=val; }
+};
+let outlineFull=false;
+function drawLines(src,lines,ms){
+  if(src==='outline') outlineFull=false; let last=0;
+  return animate(ms,(t,raw)=>{ const n=performance.now(); if(raw<1&&n-last<50) return; last=n;
+    map.getSource(src).setData({type:'Feature',properties:{},geometry:{type:'MultiLineString',
+    coordinates:lines.map(l=>l.slice(0,Math.max(2,Math.ceil(l.length*t))))}}); },()=>{ if(src==='outline') outlineFull=true; });
+}
+
+/* HTML-Ebene über der ArcGIS-Szene: Beschriftungen, Pins, Kreise, Punkte – ohne Überlappung */
+let markers=[]; const overlay=document.createElement('div');
+overlay.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;contain:strict';
+let dirty=true, lastCam='', uiRects=[];
+const SVGNS='http://www.w3.org/2000/svg', leaders=document.createElementNS(SVGNS,'svg');
+leaders.setAttribute('style','position:absolute;inset:0;width:100%;height:100%;overflow:visible');
+overlay.appendChild(leaders); const leaderPool=[];
+function leader(i){ if(!leaderPool[i]){const l=document.createElementNS(SVGNS,'line');l.setAttribute('stroke','#15202b');l.setAttribute('stroke-width','1.5');l.setAttribute('stroke-opacity','.7');leaders.appendChild(l);leaderPool[i]=l;} return leaderPool[i]; }
+function newEl(html,cls,delay){
+  const el=document.createElement('div');el.style.cssText='position:absolute;left:0;top:0;will-change:transform,opacity;transition:opacity .25s';
+  const inner=document.createElement('div');inner.className=cls;inner.innerHTML=html;inner.style.animationDelay=delay+'ms';
+  el.appendChild(inner);overlay.appendChild(el);return el;
+}
+function mark(lnglat,html,cls='lab',delay=0,anchor='left'){
+  const kind=cls.includes('pin')?'pin':(anchor==='center'?'center':'lab');
+  const el=newEl(html,cls,delay); const m={lnglat,el,kind,w:0,h:0,prio:markers.length};
+  markers.push(m); dirty=true; return m;
+}
+function circle(lnglat,size,cls,delay=0){
+  const el=document.createElement('div');el.className='circ '+cls;el.style.cssText+=`width:${size}px;height:${size}px;transition-delay:${delay}ms`;
+  const box=document.createElement('div');box.style.cssText='position:absolute;left:0;top:0;will-change:transform';box.appendChild(el);overlay.appendChild(box);
+  const m={lnglat,el:box,kind:'circ',w:size,h:size,inner:el};markers.push(m);dirty=true;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('on')));return m;
+}
+function clearMarkers(){markers.forEach(m=>m.el.remove());markers=[];leaderPool.forEach(l=>l.setAttribute('visibility','hidden'));dirty=true;}
+function readUI(){ // Flächen von Textkarte, Bildern, Navigation – dort keine Beschriftungen
+  uiRects=[]; const add=e=>{const r=e.getBoundingClientRect(); if(r.width>0) uiRects.push({x:r.left-6,y:r.top-6,w:r.width+12,h:r.height+12});};
+  const card=document.getElementById('card'); if(card&&card.classList.contains('show')) add(card);
+  document.querySelectorAll('#photos .ph:not(.out)').forEach(add); const nav=document.getElementById('nav'); if(nav) add(nav);
+  dirty=true;
+}
+setInterval(readUI,400); addEventListener('resize',readUI);
+const hit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+function project(m){ const sp=view.toScreen(new PointC({longitude:m.lnglat[0],latitude:m.lnglat[1]})); return (!sp||isNaN(sp.x))?null:sp; }
+function layout(){
+  if(!view) return;
+  const c=view.camera, key=c?`${c.position.x.toFixed(1)},${c.position.y.toFixed(1)},${c.position.z.toFixed(0)},${c.heading.toFixed(2)},${c.tilt.toFixed(2)}`:'';
+  if(key===lastCam&&!dirty) return; lastCam=key; dirty=false;
+  const W=innerWidth,H=innerHeight, placed=[...uiRects], circs=[], ownR=new Map();
+  const free=(b)=>b.x>=4&&b.y>=4&&b.x+b.w<=W-4&&b.y+b.h<=H-4&&!placed.some(p=>hit(b,p));
+  let li=0; const line=(x1,y1,x2,y2)=>{const l=leader(li++);l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('visibility','visible');};
+  // 1) Kreise und Punkte an ihren festen Ort (Kreise sind „weiche“ Hindernisse)
+  for(const m of markers){ if(m.kind!=='circ') continue;
+    const sp=project(m); if(!sp){m.el.style.opacity=0;continue;}
+    m.el.style.opacity=1; m.el.style.transform=`translate(${sp.x-m.w/2}px,${sp.y-m.h/2}px)`;
+    if(m.w>12){ circs.push({x:sp.x-m.w/2,y:sp.y-m.h/2,w:m.w,h:m.h,key:m.lnglat.join()}); ownR.set(m.lnglat.join(),Math.max(ownR.get(m.lnglat.join())||0,m.w/2)); }
+  }
+  // 2) Pins: am Ort, sonst ringförmig daneben mit Linie
+  for(const m of markers){ if(m.kind!=='pin'&&m.kind!=='center') continue;
+    if(!m.w){m.w=m.el.firstChild.offsetWidth;m.h=m.el.firstChild.offsetHeight;}
+    const sp=project(m); if(!sp){m.el.style.opacity=0;continue;}
+    const w=m.w,h=m.h; let ok=null;
+    const cand=[[0,0]]; for(const R of [w+4,2*w+4]) for(let k=0;k<8;k++){const a=-Math.PI/2+k*Math.PI/4;cand.push([Math.cos(a)*R,Math.sin(a)*R]);}
+    for(const [dx,dy] of cand){const bx={x:sp.x+dx-w/2,y:sp.y+dy-h/2,w,h}; if(free(bx)){ok=bx;break;}}
+    if(!ok){m.el.style.opacity=0;continue;}
+    placed.push({x:ok.x-2,y:ok.y-2,w:w+4,h:h+4}); m.el.style.opacity=1; m.el.style.transform=`translate(${ok.x}px,${ok.y}px)`;
+    if(ok.x+w/2!==sp.x||ok.y+h/2!==sp.y){ line(sp.x,sp.y,ok.x+w/2,ok.y+h/2); m.el.style.zIndex=2; }
+  }
+  // 3) Beschriftungen: kein Überlappen mit Text, Pins, Bildern; Kreise möglichst frei lassen
+  for(const m of markers){ if(m.kind!=='lab') continue;
+    if(!m.w){m.w=m.el.offsetWidth;m.h=m.el.offsetHeight;}
+    const sp=project(m); if(!sp){m.el.style.opacity=0;continue;}
+    const w=m.w,h=m.h,key=m.lnglat.join(), r=ownR.get(key)||0;
+    const pinHere=markers.some(o=>o!==m&&(o.kind==='pin')&&o.lnglat.join()===key);
+    const g=Math.max(12,r+6,pinHere?24:0), cand=[];
+    for(const d of [g,g+14,g+32,g+56]) cand.push([sp.x+d,sp.y-h/2],[sp.x-d-w,sp.y-h/2],[sp.x-w/2,sp.y-h-d],[sp.x-w/2,sp.y+d],
+      [sp.x+d*.7,sp.y-h-d*.7],[sp.x+d*.7,sp.y+d*.7],[sp.x-d*.7-w,sp.y-h-d*.7],[sp.x-d*.7-w,sp.y+d*.7]);
+    let best=null,bestCost=1e9,i=0;
+    for(const [x,y] of cand){ const bx={x,y,w,h}; i++; if(!free(bx)) continue;
+      let cost=i*40; for(const c of circs){ if(c.key===key) continue; const ix=Math.max(0,Math.min(bx.x+w,c.x+c.w)-Math.max(bx.x,c.x)), iy=Math.max(0,Math.min(bx.y+h,c.y+c.h)-Math.max(bx.y,c.y)); cost+=ix*iy; }
+      if(cost<bestCost){bestCost=cost;best=bx;} if(cost<=i*40) break; }
+    if(!best){ m.el.style.opacity=0; continue; }
+    placed.push({x:best.x-3,y:best.y-3,w:w+6,h:h+6});
+    m.el.style.opacity=1; m.el.style.transform=`translate(${best.x}px,${best.y}px)`;
+    const ex=Math.max(best.x,Math.min(sp.x,best.x+w)), ey=Math.max(best.y,Math.min(sp.y,best.y+h));
+    if(Math.hypot(ex-sp.x,ey-sp.y)>Math.max(16,r+10)) line(sp.x,sp.y,ex,ey);
+  }
+  for(let i=li;i<leaderPool.length;i++) leaderPool[i].setAttribute('visibility','hidden');
+}
+(function loop(){ layout(); requestAnimationFrame(loop); })();
+
+/* Kamera */
+const pad=()=>innerWidth>900?{left:470,right:Math.min(400,innerWidth*.3+40),top:40,bottom:100}:{left:20,right:20,top:innerHeight*.22,bottom:innerHeight*.5};
+let flying=false, flyTok=0, pending=[];
+function flush(){ flying=false; const q=pending; pending=[]; q.forEach(f=>f()); dirty=true; }
+function fly(center,zoom,opt={}){ if(!view) return; view.padding=pad(); const tok=++flyTok; flying=true;
+  view.goTo({center,zoom,tilt:opt.pitch??view.camera.tilt,heading:opt.bearing??0},{duration:opt.duration||2600,easing:'in-out-cubic'})
+    .catch(()=>{}).then(()=>{ if(tok===flyTok) flush(); }); }
+function fitRegion(opt={}){ fly([8.85,50.15], innerWidth>900?(innerHeight<760?7.7:8.0):7.2, opt); }
+
+/* Globus drehen */
+let spinning=true;
+function spin(){ (function f(){ if(!spinning||!view) return; if(!view.interacting){const c=view.camera.clone(); c.position.longitude+=0.12; c.tilt=0; view.camera=c;} requestAnimationFrame(f); })(); }
+
+/* ---------- Effekte ---------- */
+let cityMarks=[], efreMarks=[], dotMarks=[];
+function growCities(){ if(cityMarks.length) return; cityMarks=CITIES.map(([n,c,p],i)=>circle(c,Math.round(Math.sqrt(p)*2.0),'blue',i*60)); }
+function growEfre(){ if(efreMarks.length) return; efreMarks=EFRE_ORTE.map(([n,c,v],i)=>circle(c,Math.round(Math.sqrt(v)*16),'gold',i*50)); }
+function hideCities(){ cityMarks=[]; efreMarks=[]; dotMarks=[]; } // Elemente werden mit clearMarkers() entfernt
+const OUTLINE_S={type:'Feature',properties:{},geometry:{type:'MultiLineString',coordinates:OUTLINE.geometry.coordinates.map(l=>simplify(l,0.003))}};
+function drawOutline(ms=2500){ return drawLines('outline',OUTLINE_S.geometry.coordinates,ms); }
+function fullOutline(){ if(outlineFull) return; map.getSource('outline').setData(OUTLINE_S); outlineFull=true; }
+function flowDots(){
+  const lines=FLOWS.features.map(f=>f.geometry.coordinates);
+  dotMarks=[]; lines.forEach(()=>{for(let k=0;k<3;k++){const m=circle(lines[0][0],9,'dot');dotMarks.push(m);}});
+  const o={stop:false};anims.push(o);const s=performance.now();
+  (function f(n){ if(o.stop) return;
+    let j=0; lines.forEach((l,i)=>{for(let k=0;k<3;k++){const t=(((n-s)/3500+k/3+i*.07)%1);const p=t*(l.length-1),a=Math.floor(p),r=p-a,b=Math.min(a+1,l.length-1);
+      dotMarks[j++].lnglat=[l[a][0]+(l[b][0]-l[a][0])*r,l[a][1]+(l[b][1]-l[a][1])*r];}});
+    dirty=true; requestAnimationFrame(f);})(s);
+}
+function countUp(root){
+  root.querySelectorAll('[data-count]').forEach(el=>{
+    const to=parseFloat(el.dataset.count),dec=(el.dataset.dec|0),pre=el.dataset.pre||'',suf=el.dataset.suf||'';
+    animate(1600,t=>{el.textContent=pre+(to*t).toLocaleString('de-DE',{minimumFractionDigits:dec,maximumFractionDigits:dec})+suf;});
+  });
+}
+function growBars(root){ setTimeout(()=>root.querySelectorAll('.bar i').forEach(i=>i.style.width=i.dataset.w+'%'),350); }
+
+const FLOWS=fc(CITIES.slice(1).map(([n,c,p])=>({...line(arc(c,FFM)),properties:{w:1+p/90}})));
+
+/* Während die Kamera fliegt, erscheinen keine Kreise, Linien, Etiketten – erst nach der Landung */
+['mark','circle','growCities','growEfre','flowDots','drawLines'].forEach(n=>{ const f=window[n];
+  window[n]=function(...a){
+    if(n==='mark') a[3]=Math.min(1200,Math.max(0,(a[3]||0)-(flying?1500:0))); // nach der Landung zügig, aber gestaffelt
+    if(flying){ pending.push(()=>f(...a)); return; } return f(...a); }; });
+{ const v=window.vis; window.vis=function(id,on,val){ if(on&&flying){ pending.push(()=>v(id,on,val)); return; } return v(id,on,val); }; }
+
+/* ArcGIS laden */
+require(['esri/Map','esri/views/SceneView','esri/layers/GraphicsLayer','esri/Graphic','esri/geometry/Point','esri/Basemap','esri/layers/TileLayer'],(EMap,SceneView,GraphicsLayer,G,Pt,Basemap,TileLayer)=>{
+  const AGS='https://server.arcgisonline.com/ArcGIS/rest/services/';
+  BASEMAP={
+    sat:new Basemap({baseLayers:[new TileLayer({url:AGS+'World_Imagery/MapServer'})],referenceLayers:[new TileLayer({url:AGS+'Reference/World_Boundaries_and_Places/MapServer'})],title:'Esri World Imagery'}),
+    light:new Basemap({baseLayers:[new TileLayer({url:AGS+'Canvas/World_Light_Gray_Base/MapServer'})],referenceLayers:[new TileLayer({url:AGS+'Canvas/World_Light_Gray_Reference/MapServer'})],title:'Esri Light Gray Canvas'})
+  };
+  Graphic=G; PointC=Pt;
+  const order=['eu','regFill','regLine','flows','outline','tripdone','trip'];
+  order.forEach(k=>L[k]=new GraphicsLayer({elevationInfo:{mode:'on-the-ground'},opacity:['outline','trip','tripdone'].includes(k)?1:0,visible:['outline','trip','tripdone'].includes(k)}));
+  const emap=new EMap({basemap:BASEMAP.sat,layers:order.map(k=>L[k])}); curBase='sat';
+  view=new SceneView({container:'map',map:emap,qualityProfile:'medium',
+    camera:{position:{longitude:-20,latitude:22,z:26000000},tilt:0,heading:0},
+    environment:{background:{type:'color',color:[2,4,10,1]},starsEnabled:true,atmosphereEnabled:true,lighting:{type:'virtual'}},
+    ui:{components:['attribution']}});
+  document.body.appendChild(overlay);
+  // feste Geometrien
+  setG('eu',EUREG.features.map(f=>({geometry:polygon(f.geometry),symbol:fillSym(f.properties.id==='DE71'?'#003399':f.properties.id==='RO21'?'#d2453b':'#999999',.6,{color:[255,255,255,1],width:1.2})})));
+  const LC={HE:'#003399',RP:'#2f8f63',BY:'#d2453b'};
+  setG('regFill',REGION.features.map(f=>({geometry:polygon(f.geometry),symbol:fillSym(LC[f.properties.land],.85)})));
+  setG('regLine',REGION.features.map(f=>({geometry:polygon(f.geometry),symbol:fillSym('#ffffff',0,{color:[255,255,255,.9],width:.8})})));
+  setG('flows',FLOWS.features.map(f=>({geometry:polyline([f.geometry.coordinates]),symbol:lineSym('#d2453b',f.properties.w*1.5,.8)})));
+  view.when(()=>{ ready=true; go(Math.min(S.length-1,parseInt(location.hash.slice(1))||0)); });
+});
+
+/* ---------- Folien ---------- */
+const S = [
+  { // 0 Titel
+    title:true,
+    enter(){ base('sat'); spinning=true; spin(); }
+  },
+  { // 1 Intro – Schlagzeile, Anflug vom Globus auf Frankfurt
+    num:'Intro', h:'Was ist los am Main?',
+    html:`<div class="headline in">„Mietspiegel 2026: Wohnen in Frankfurt ist wieder teurer geworden“</div>
+      <p class="muted in" style="animation-delay:.2s">hessenschau.de · 29.05.2026</p>
+      <div class="kpis"><div class="kpi in" style="animation-delay:.4s"><b data-count="12.28" data-dec="2" data-suf=" €">0</b><span>Ø Miete pro m² (Mietspiegel)</span></div>
+      <div class="kpi in" style="animation-delay:.55s"><b data-count="6.8" data-dec="1" data-pre="+" data-suf=" %">0</b><span>seit 2024</span></div></div>
+      <p class="in" style="animation-delay:.8s">2.400 Studierende warten auf einen Wohnheimplatz (AStA, Okt. 2026).</p>
+      <p class="src">Quellen: hessenschau.de [1], AStA Uni Frankfurt [2]</p>`,
+    img:[['roemer','Frankfurt: Römerberg'],['europaviertel','Neubau im Europaviertel']],
+    enter(prev){ spinning=false; base('sat'); map.stop();
+      fly(FFM,12.3,{pitch:55,bearing:-20,duration:prev===0?7500:2600,curve:1.9});
+      mark(FFM,'Frankfurt am Main','lab red big',prev===0?6800:1500); }
+  },
+  { // 2 Frage
+    num:'Forschungsfrage', h:'Unsere Frage',
+    html:`<div class="q in">Stärkt EU-Förderung im Rhein-Main-Gebiet die ganze Region – oder vor allem das ohnehin starke Zentrum Frankfurt?</div>
+      <p class="in" style="animation-delay:.4s"><b>Vermutung:</b> Das Geld landet dort, wo schon alles ist – in Frankfurt.</p>
+      <p class="in muted" style="animation-delay:.7s">Prüfen mit: Förderdaten · Karten · Exkursion</p>`,
+    img:[['euflag','EU-Fördergeld – wohin fließt es?']],
+    enter(){ base('light'); fullOutline(); vis('reg-fill',true,.15); fitRegion({pitch:0,bearing:0}); }
+  },
+  { // 3 Verortung
+    num:'Verortung', h:'Wo liegt Rhein-Main?',
+    html:`<p class="in">Im Herzen Europas – an Rhein und Main.</p>
+      <div class="legend in" style="animation-delay:.3s"><span><i style="background:var(--he)"></i>Hessen</span><span><i style="background:var(--rp)"></i>Rheinland-Pfalz</span><span><i style="background:var(--by)"></i>Bayern</span></div>
+      <p class="in" style="animation-delay:.5s">Metropolregion FrankfurtRheinMain: <b>18 Landkreise + 7 kreisfreie Städte</b> in 3 Bundesländern</p>
+      <p class="src">Karte: ArcGIS [3] · Grenzen: Eurostat GISCO [4] · Abgrenzung: IHK „FRM in Zahlen 2024“ [5]</p>`,
+    img:[['frankfurt','Frankfurt am Main – Dom und Eiserner Steg'],['rheingau','Weinberge im Rheingau']],
+    enter(){ base('sat'); map.stop(); fitRegion({pitch:0,bearing:0});
+      later(()=>{ drawOutline(2800); vis('reg-fill',true,.35); vis('reg-line',true,.6);
+        mark([8.15,50.55],'Hessen','lab big',1800);mark([7.9,49.75],'Rheinland-Pfalz','lab big',2100);mark([9.25,49.75],'Bayern','lab big',2400); },1600); }
+  },
+  { // 4 Zahlen
+    num:'Die Region', h:'Rhein-Main in Zahlen',
+    html:`<div class="kpis">
+      <div class="kpi in"><b data-count="5.9" data-dec="1" data-suf=" Mio.">0</b><span>Einwohner (2022)</span></div>
+      <div class="kpi in" style="animation-delay:.15s"><b data-count="14753" data-suf=" km²">0</b><span>Fläche</span></div>
+      <div class="kpi in" style="animation-delay:.3s"><b data-count="8.35" data-dec="2" data-suf=" %">0</b><span>der deutschen Wirtschaftsleistung (BWS) – auf 4,1 % der Fläche</span></div>
+      <div class="kpi in" style="animation-delay:.45s"><b data-count="63.2" data-dec="1" data-suf=" Mio.">0</b><span>Fluggäste FRA 2025</span></div>
+      <div class="kpi in" style="animation-delay:.6s"><b data-count="2.55" data-dec="2" data-suf=" Mio.">0</b><span>sozialversicherungspflichtig Beschäftigte</span></div>
+      <div class="kpi in" style="animation-delay:.75s"><b data-count="243000" data-pre="≈ ">0</b><span>Studierende</span></div></div>
+      <p class="src">Quellen: IHK „FRM in Zahlen 2024“ [5], hessenschau/Fraport [6]</p>`,
+    img:[['boerse','Frankfurter Börse'],['ezb','Europäische Zentralbank']],
+    enter(){ base('light'); fullOutline(); vis('reg-fill',true,.3); vis('reg-line',true,.8); fitRegion({pitch:30,bearing:10}); }
+  },
+  { // 5 Polyzentrik
+    num:'Raumstruktur', h:'Viele Zentren statt einer Großstadt',
+    html:`<p class="muted in">Einwohner in Tausend (31.12.2025)</p>`+
+      CITIES.slice(0,7).map(([n,c,v],i)=>`<div class="bar in" style="animation-delay:${i*.08}s"><span>${n}</span><i data-w="${v/7.61}"></i><span>${v}k</span></div>`).join('')+
+      `<p class="in" style="animation-delay:.7s"><b>Polyzentrisch:</b> 6 Kernstädte, aber nur 1,6 von 5,9 Mio. Menschen leben dort.</p>
+      <p class="src">Quellen: citypopulation.de [7], IHK „FRM in Zahlen 2024“ [5]</p>`,
+    img:[['wiesbaden','Wiesbaden'],['darmstadt','Darmstadt'],['hanau','Hanau']],
+    enter(){ base('light'); fullOutline(); vis('reg-fill',true,.12); fitRegion({pitch:0,bearing:0});
+      later(growCities,800); CITIES.forEach(([n,c,p],i)=>mark(c,`${n} <small>${p}k</small>`,'lab',900+i*150)); }
+  },
+  { // 6 Pendler
+    num:'Verflechtung', h:'Alle Wege führen nach Frankfurt',
+    html:`<div class="kpis"><div class="kpi in"><b data-count="422500">0</b><span>Einpendler nach Frankfurt (2025)</span></div>
+      <div class="kpi in" style="animation-delay:.2s"><b data-count="6900" data-pre="+">0</b><span>mehr als im Vorjahr</span></div></div>
+      <p class="in" style="animation-delay:.4s">Unter den 5 größten Städten Deutschlands hat nur München mehr Einpendler.</p>
+      <p class="in" style="animation-delay:.6s">Folge: volle S-Bahnen, Staus, Druck auf Wohnungen im Zentrum.</p>
+      <p class="src">Quelle: BBSR / Bundesagentur für Arbeit [8]</p>`,
+    img:[['hbf','Frankfurt Hauptbahnhof'],['sbahn','S-Bahn Rhein-Main']],
+    enter(){ base('light'); fullOutline(); fitRegion({pitch:40,bearing:-15}); growCities(); vis('flows',true,.5); later(flowDots,900);
+      mark(FFM,'422.500 Einpendler','lab red big',600); }
+  },
+  { // 7 Wirtschaft
+    num:'Wirtschaft', h:'Motoren der Region',
+    html:ECON.map(([n],i)=>`<div class="stop in" style="animation-delay:${i*.12}s"><b style="background:var(--eu)">${i+1}</b>${n}</div>`).join('')+
+      `<div class="kpis" style="margin-top:12px"><div class="kpi in" style="animation-delay:.7s"><b data-count="19.6" data-dec="1" data-suf=" Tbit/s">0</b><span>Datenrekord DE-CIX Frankfurt (Juli 2026)</span></div>
+      <div class="kpi in" style="animation-delay:.85s"><b>≈ 1.200 MW</b><span>Rechenzentren – Strom wird knapp</span></div></div>
+      <p class="src">Quellen: DE-CIX [9], Bitkom/Xpert.Digital [10], ingenieur.de [11]</p>`,
+    img:[['ezb','EZB im Ostend'],['decix','DE-CIX – Internetknoten'],['hoechst','Industriepark Höchst']],
+    enter(){ base('sat'); fullOutline(); fly(P(8.64,50.085),11.2,{pitch:50,bearing:20});
+      ECON.forEach(([n,c],i)=>mark(c,`${i+1} · ${n}`,'lab gold',1800+i*250)); }
+  },
+  { // 8 EU-Vergleich
+    num:'Im EU-Vergleich', h:'Reich im Westen, arm im Osten?',
+    html:`<p class="muted in">BIP pro Kopf in Kaufkraft (KKS), EU = 100 · Jahr 2024</p>
+      <div class="bar in"><span>Bukarest-Ilfov (RO)</span><i class="g" data-w="100"></i><span>188</span></div>
+      <div class="bar in" style="animation-delay:.1s"><span>Darmstadt (Rhein-Main)</span><i data-w="79"></i><span>148</span></div>
+      <div class="bar in" style="animation-delay:.2s"><span>EU-Durchschnitt</span><i class="g" style="background:#999" data-w="53"></i><span>100</span></div>
+      <div class="bar in" style="animation-delay:.3s"><span>Nord-Est (RO)</span><i class="r" data-w="26"></i><span>48</span></div>
+      <p class="in" style="animation-delay:.5s">➜ Das Gefälle verläuft <b>nicht nur zwischen Ländern, sondern auch innerhalb</b>: Hauptstadt- und Metropolregionen wachsen deutlich schneller (8. Kohäsionsbericht).</p>
+      <p class="src">Quellen: Eurostat [12], EU-Kommission – 8. Kohäsionsbericht [13]</p>`,
+    img:[['iasi','Iași – Hauptstadt der Region Nord-Est'],['frankfurt','Frankfurt am Main']],
+    enter(){ base('sat'); vis('eu-fill',true,.6); vis('eu-line',true); fly(P(17,48),3.6,{pitch:0,bearing:0,duration:3500});
+      mark(P(8.7,50.0),'Rhein-Main 148','lab big',2600); mark(P(26.8,47.3),'Nord-Est 48','lab red big',3000); mark(P(26.1,44.43),'Bukarest 188','lab big',3400); }
+  },
+  { // 9 Kohäsionspolitik
+    num:'EU-Raumordnung', h:'Was will die Kohäsionspolitik?',
+    html:`<div class="q in" style="font-size:17px">Ziel: wirtschaftlicher, sozialer und <b>territorialer Zusammenhalt</b> – regionale Ungleichgewichte abbauen (Art. 174–178 AEUV)</div>
+      <div class="kpis"><div class="kpi in" style="animation-delay:.2s"><b data-count="378" data-suf=" Mrd. €">0</b><span>2021–27 · ≈ ⅓ des EU-Haushalts</span></div>
+      <div class="kpi in" style="animation-delay:.35s"><b>5 Ziele</b><span>intelligenter · grüner · vernetzter · sozialer · bürgernäher</span></div></div>
+      <p class="in" style="animation-delay:.5s"><b>Wirkung (8. Kohäsionsbericht):</b></p>
+      <div class="stop in" style="animation-delay:.6s"><b style="background:var(--green)">↑</b>BIP pro Kopf ärmerer Regionen bis zu <b>+5 %</b> (Förderung 2014–20)</div>
+      <div class="stop in" style="animation-delay:.7s"><b style="background:var(--green)">↓</b>Abstand reichste/ärmste Regionen <b>−3,5 %</b></div>
+      <div class="stop in" style="animation-delay:.8s"><b style="background:var(--red)">!</b>„Selbst in wohlhabenden Regionen gibt es weiterhin soziale Brennpunkte.“</div>
+      <p class="src">Quellen: EU-Kommission – 8. Kohäsionsbericht [13], Bundeswirtschaftsministerium [14]</p>`,
+    img:[['euflag','Europäische Union'],['iasi','Aufholende Regionen im Osten']],
+    enter(){ base('sat'); vis('eu-fill',true,.45); vis('eu-line',true); fly(P(14,50),3.3,{pitch:20,bearing:-10,duration:2600});
+      mark(P(26.8,47.3),'Ziel: aufholen','lab red big',1600); mark(P(8.7,50.0),'Ziel: Innovation & Klima','lab big',2000); }
+  },
+  { // 10 Fördertöpfe
+    num:'EU-Fördermittel', h:'Welche Töpfe wirken hier?',
+    html:[['EFRE','#003399','Regionalfonds · 248,7 Mio. €','Innovation 129 · Klima 89 · Stadtmobilität 31 Mio. €'],
+          ['ESF+','#2f8f63','Sozialfonds · 169 Mio. €','Ausbildung, Qualifizierung (+ 254 Mio. € vom Land)'],
+          ['INT','#f2b705','Interreg','Zusammenarbeit über Grenzen – Teil des EFRE'],
+          ['KF','#999','Kohäsionsfonds','nur Staaten unter 90 % des EU-Einkommens – nicht DE']]
+      .map(([k,c,n,d],i)=>`<div class="fund in ${k==='KF'?'no':''}" style="animation-delay:${i*.15}s"><div class="ico" style="background:${c}">${k}</div><div><b>${n}</b><br><span class="muted">${d}</span></div></div>`).join('')+
+      `<p class="in" style="animation-delay:.7s"><b>Regel für reiche Regionen:</b> mind. <b>85 %</b> des EFRE für „intelligenter“ & „grüner“ – EU zahlt max. <b>40 %</b>.</p>
+      <p class="in" style="animation-delay:.85s">Deutschland gesamt ≈ 21 Mrd. € · Rumänien 30,9 Mrd. € (≈ 25-mal mehr pro Kopf als Hessen)</p>
+      <p class="src">Hessen 2021–27 · Quellen: EFRE-Programm Hessen [15], ESF+-Broschüre Hessen [16], Bundeswirtschaftsministerium [14], GTAI [17]</p>`,
+    img:[['euflag','Europäische Union']],
+    enter(){ base('light'); fullOutline(); vis('reg-fill',true,.25); fitRegion({pitch:0,bearing:0});
+      mark(P(9.0,50.4),'€ EFRE 248,7 Mio.','lab gold big',1500); mark(P(8.0,49.8),'€ ESF+ 169 Mio.','lab big',1800); }
+  },
+  { // 11 Geldfluss-Karte
+    num:'Datenanalyse', h:'Wohin fließt das EFRE-Geld?',
+    html:`<p class="muted in">Alle 182 EFRE-Projekte in Hessen, Stand 26.01.2026 · EU-Mittel in Mio. €</p>`+
+      EFRE_ORTE.slice(0,5).map(([n,c,v,k],i)=>`<div class="bar in" style="animation-delay:${i*.08}s"><span>${n} <small>(${k})</small></span><i class="${n==='Frankfurt'?'r':''}" data-w="${v/0.1979}"></i><span>${v.toLocaleString('de-DE')}</span></div>`).join('')+
+      `<div class="kpis" style="margin-top:10px"><div class="kpi in" style="animation-delay:.6s"><b>≈ 118 €</b><span>pro Einwohner in Darmstadt</span></div>
+      <div class="kpi in" style="animation-delay:.75s"><b>≈ 9 €</b><span>pro Einwohner in Frankfurt</span></div></div>
+      <p class="in" style="animation-delay:.9s">➜ Nicht Frankfurt, sondern die <b>Wissenschaftsstadt Darmstadt</b> bekommt am meisten – das Geld folgt der 85-%-Regel zu Forschung & Klima.</p>
+      <p class="src">Eigene Auswertung: Liste der Vorhaben EFRE Hessen [18]</p>`,
+    img:[['darmstadt','Darmstadt'],['esoc','Forschungsstandort Darmstadt']],
+    enter(){ base('light'); fullOutline(); vis('reg-fill',true,.1); fly([8.75,50.15],innerWidth>900?8.3:7.4,{pitch:35,bearing:0});
+      later(growEfre,900); EFRE_ORTE.slice(0,6).forEach(([n,c,v],i)=>mark(c,`${n} <small>${v.toLocaleString('de-DE')} Mio. €</small>`,'lab gold',1400+i*200)); }
+  },
+  { // 12 Projekte
+    num:'Förderprojekte', h:'Beispiele vor Ort',
+    html:`<table class="in"><tr><th>Projekt</th><th>EU</th><th>gesamt</th></tr>`+
+      PROJ.map(([o,c,n,eu,tot,z])=>`<tr><td><b>${n}</b><br><span class="muted">${o} · ${z}</span></td><td>${eu.toLocaleString('de-DE')} Mio.</td><td>${tot.toLocaleString('de-DE')} Mio.</td></tr>`).join('')+`</table>
+      <p class="in" style="animation-delay:.5s">EU zahlt 40 % – Rest: Land, Unis, Firmen. Schwerpunkt <b>Forschung & Klima</b>.</p>
+      <p class="src">Quelle: Liste der Vorhaben EFRE Hessen [18]</p>`,
+    img:[['offenbach','Offenbach'],['gsi','Darmstadt: GSI Helmholtzzentrum'],['goethe','Frankfurt: Goethe-Uni']],
+    enter(){ base('light'); fullOutline(); fly([8.7,50.0],innerWidth>900?9.4:8.6,{pitch:40,bearing:-10});
+      PROJ.forEach(([o,c,n],i)=>{mark(c,'€','pin',1500+i*350,'center');mark(c,n,'lab',1700+i*350);}); }
+  },
+  { // 13 Exkursion Überblick
+    num:'Geo-Exkursion', h:'EU-Förderung vor Ort sichtbar machen',
+    html:`<div class="q in" style="font-size:17px">Exkursionsfrage: Wo wird EU-Förderung sichtbar – und was bewirkt sie wirklich?</div>`+
+      STATIONS.map((s,i)=>`<div class="stop in" style="animation-delay:${.2+i*.12}s"><b style="background:${DAYC[s.d]}">${i+1}</b>${s.n}${s.eu?` <span class="muted">· ${s.eu.toLocaleString('de-DE')} Mio. € EU</span>`:' <span class="muted">· ohne EU-Geld</span>'}</div>`).join('')+
+      `<p class="in muted" style="animation-delay:1s"><b>Erhebungen (eigene Planung):</b> Förderschilder kartieren · Interviews mit Projektleitungen · Passantenbefragung · Pendlerzählung</p>
+      <p class="src">Quelle: Liste der Vorhaben EFRE Hessen [18]</p>`,
+    img:[['gsi','GSI Darmstadt'],['goethe','Goethe-Uni, Campus Westend']],
+    enter(){ base('light'); fullOutline(); vis('reg-fill',false); fly([8.72,50.0],innerWidth>900?9.5:8.6,{pitch:40,bearing:-10});
+      const coords=STATIONS.map(s=>s.c); map.setPaintProperty('trip','line-color','#003399');
+      later(()=>{ const dense=[];coords.forEach((c,i)=>{ if(i) for(let k=1;k<=20;k++){const a=coords[i-1];dense.push([a[0]+(c[0]-a[0])*k/20,a[1]+(c[1]-a[1])*k/20]);} else dense.push(c);});
+        drawLines('trip',[dense],4000);
+        STATIONS.forEach((s,i)=>mark(s.c,`${i+1} · ${s.n}`,s.eu?'lab gold':'lab',i*4000/(STATIONS.length-1))); },2200); }
+  },
+  { // 14 Stationen Frankfurt
+    num:'Geo-Exkursion · Stationen 1–3', h:'Frankfurt: Zentrum mit wenig EU-Geld',
+    html:STATIONS.slice(0,3).map((s,i)=>`<div class="fund in" style="animation-delay:${i*.2}s"><div class="ico" style="background:${DAYC[s.d]}">${i+1}</div><div><b>${s.n}</b><br>${s.was}<br><span class="muted">Wirkung: ${s.wirk}</span><br><span style="color:var(--eu);font-size:14px">▸ Erhebung (eigene Planung): ${s.erh}</span></div></div>`).join('')+
+      `<p class="src">Quellen: hessenschau.de [1], Liste der Vorhaben EFRE Hessen [18]</p>`,
+    img:STATIONS.slice(0,3).map(s=>[s.img,s.n]),
+    enter(){ base('sat'); fullOutline(); fly([8.69,50.115],12.1,{pitch:55,bearing:-15});
+      STATIONS.slice(0,3).forEach((s,i)=>{mark(s.c,`${i+1}`,'pin',1800+i*400,'center');mark(s.c,s.n,'lab',2000+i*400);}); }
+  },
+  { // 15 Stationen Darmstadt & Offenbach
+    num:'Geo-Exkursion · Stationen 4–6', h:'Darmstadt & Offenbach: hier wirkt das Geld',
+    html:STATIONS.slice(3).map((s,i)=>`<div class="fund in" style="animation-delay:${i*.2}s"><div class="ico" style="background:${DAYC[s.d]}">${i+4}</div><div><b>${s.n}</b> <span class="muted">· ${s.eu.toLocaleString('de-DE')} Mio. € EU</span><br>${s.was}<br><span class="muted">Wirkung: ${s.wirk}</span><br><span style="color:var(--eu);font-size:14px">▸ Erhebung (eigene Planung): ${s.erh}</span></div></div>`).join('')+
+      `<p class="in" style="animation-delay:.8s"><b>Vergleich:</b> gleiche Befragung in Darmstadt und Frankfurt – wo kennt man die EU-Förderung?</p>
+      <p class="src">Quelle: Liste der Vorhaben EFRE Hessen [18]</p>`,
+    img:STATIONS.slice(3).map(s=>[s.img,s.n]),
+    enter(){ base('light'); fullOutline(); fly([8.72,49.98],innerWidth>900?10.0:9.2,{pitch:45,bearing:10});
+      STATIONS.slice(3).forEach((s,i)=>{mark(s.c,`${i+4}`,'pin',1800+i*400,'center');mark(s.c,s.n,'lab',2000+i*400);}); }
+  },
+  { // 16 Ablauf, Anreise, Unterkunft (untergeordnet)
+    num:'Geo-Exkursion · Organisation', h:'Ablauf in Kürze',
+    html:`<table class="in"><tr><th>Tag</th><th>Programm</th></tr>
+      <tr><td><span class="day" style="background:#f2b705">1</span></td><td>Anreise mit der Bahn · Stationen 1–3 in Frankfurt</td></tr>
+      <tr><td><span class="day" style="background:#2f8f63;color:#fff">2</span></td><td>7:30 Pendlerzählung Hbf · S-Bahn/Regio nach Darmstadt · Stationen 4–5</td></tr>
+      <tr><td><span class="day" style="background:#d2453b;color:#fff">3</span></td><td>Station 6 in Offenbach · Ergebnisse auswerten · Rückfahrt</td></tr></table>
+      <p class="in muted" style="animation-delay:.4s">Unterkunft: Jugendherberge Frankfurt (Deutschherrnufer) · vor Ort mit Deutschlandticket bzw. RMV-Gruppenticket · Kosten ≈ 240 € p. P. (Schätzung)</p>
+      <p class="src">Quellen: Jugendherberge Frankfurt [19], zdfheute (Deutschlandticket) [20]</p>`,
+    img:[['hbf','Anreise: Frankfurt Hbf'],['sbahn','S-Bahn Rhein-Main']],
+    enter(){ base('light'); fullOutline(); fitRegion({pitch:0,bearing:0});
+      const C=STATIONS.map(s=>s.c); map.getSource('tripdone').setData(fc([[[C[0],C[1],C[2]],1],[[FFM,C[3],C[4]],2],[[C[4],C[5]],3]].map(([l,d])=>({...line(l),properties:{c:DAYC[d]}}))));
+      map.setPaintProperty('tripdone','line-opacity',1);
+      STATIONS.forEach((s,i)=>mark(s.c,`${i+1}`,'pin',600+i*200,'center')); }
+  },
+  { // 17 Bewertung
+    num:'Bewertung', h:'Erfolge, Probleme, Zukunft',
+    html:`<div class="eval"><div class="plus in"><b>✓ Erfolge</b><br>Geld stärkt Nebenzentren (Darmstadt, Offenbach, Gießen) · passt zu den EU-Zielen „intelligenter“ & „grüner“ · Abwärme statt Gas</div>
+      <div class="minus in" style="animation-delay:.3s"><b>✗ Herausforderungen</b><br>249 Mio. € in 7 Jahren – die Region erwirtschaftet ≈ 272 Mrd. € pro Jahr · Mieten +6,8 %, 422.500 Einpendler: „soziale Brennpunkte auch in wohlhabenden Regionen“ – dafür hat der EFRE hier kaum Geld</div>
+      <div class="future in" style="animation-delay:.6s"><b>→ Zukunft</b><br>Ab 2028 neue Förderperiode: Fokus Transformation, Wettbewerbsfähigkeit, Resilienz – bekommen reiche Regionen weiter Geld? · Fernbahntunnel frühestens 2040er</div></div>
+      <p class="src">Quellen: IHK „FRM in Zahlen 2024“ [5], EU-Kommission – 8. Kohäsionsbericht [13], Bundeswirtschaftsministerium [14], DB InfraGO [21]</p>`,
+    img:[['europaviertel','Wachstum im Zentrum'],['tu','Forschung in Darmstadt']],
+    enter(){ base('light'); fullOutline(); vis('reg-fill',true,.2); vis('flows',true,.35); growCities(); flowDots(); fitRegion({pitch:20,bearing:-10}); }
+  },
+  { // 18 Fazit
+    num:'Fazit', h:'Antwort auf unsere Frage',
+    html:`<div class="q in">Stärkt EU-Förderung die ganze Region – oder vor allem Frankfurt?</div>
+      <p class="in" style="animation-delay:.4s;font-size:19px"><b>Eher die ganze Region:</b> Das EFRE-Geld fließt vor allem in Forschungsstädte wie Darmstadt – nicht ins Zentrum Frankfurt. Das stärkt die Polyzentrik.</p>
+      <p class="in" style="animation-delay:.8s;font-size:19px"><b>Aber:</b> Die Summen sind klein. Für Wohnen und Pendeln entscheiden Land, Bund und Kommunen – nicht die EU.</p>
+      <p class="in muted" style="animation-delay:1.2s">Danke fürs Zuhören! Fragen?</p>
+      <p class="src">Karte: ArcGIS [3] · Grenzen: Eurostat GISCO [4] · Fotos: Wikimedia Commons [22] · KI: Claude Opus 5.5, Anthropic [23] · Quellenliste: Quellen_und_Fakten.xlsx</p>`,
+    img:[['frankfurt','Rhein-Main']],
+    enter(){ base('sat'); fullOutline(); fly(P(8.7,50.1),2.2,{pitch:0,bearing:0,duration:5000});
+      later(()=>{spinning=true;spin();},5200); }
+  }
+];
+
+/* ---------- Ablauf ---------- */
+let cur=-1;
+const card=document.getElementById('card'),photos=document.getElementById('photos'),title=document.getElementById('title'),
+      stars=document.getElementById('stars'),next=document.getElementById('next'),dots=document.getElementById('dots');
+S.forEach((_,i)=>{const d=document.createElement('i');d.title='Folie '+(i+1);d.onclick=()=>go(i);dots.appendChild(d);});
+
+function reset(){
+  stopAnims(); clearMarkers(); spinning=false; pending=[]; flying=false;
+  ['eu','regFill','regLine','flows'].forEach(k=>{L[k].opacity=0;L[k].visible=false;});
+  L.trip.removeAll(); L.tripdone.removeAll(); setTimeout(readUI,900); setTimeout(readUI,3200);
+  L.tripdone.opacity=.35; hideCities();
+}
+function go(i){
+  if(i<0||i>=S.length||!ready)return;
+  const prev=cur; cur=i; const s=S[i];
+  reset();
+  title.classList.toggle('hide',!s.title); stars.classList.toggle('off',!(s.title||i===S.length-1));
+  // Textkarte
+  card.classList.remove('show');
+  later(()=>{
+    if(s.title){card.innerHTML='';return;}
+    card.innerHTML=`<div class="num">${s.num}</div><h2>${s.h}</h2>${s.html}`;
+    card.scrollTop=0; card.classList.add('show'); countUp(card); growBars(card);
+  }, prev===0?2500:350);
+  // Bilder
+  [...photos.children].forEach(p=>{p.classList.add('out');setTimeout(()=>p.remove(),400);});
+  (s.img||[]).forEach(([f,cap],k)=>later(()=>{
+    const fig=document.createElement('figure');fig.className='ph';fig.style.margin=0;fig.style.animationDelay=(k*.25)+'s';
+    fig.innerHTML=`<img src="img/${f}.jpg" alt="${cap}"><figcaption>${cap}</figcaption>`;photos.appendChild(fig);
+  }, (prev===0?3000:700)));
+  flying=true; const tok0=flyTok; s.enter(prev); if(flyTok===tok0) flush();
+  next.textContent = i===0?'Start →': i===S.length-1?'Von vorn ↺':'Weiter →';
+  document.getElementById('prev').style.visibility=i===0?'hidden':'visible';
+  document.getElementById('prog').style.width=(i/(S.length-1)*100)+'%';
+  [...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));
+}
+next.onclick=()=>go(cur===S.length-1?0:cur+1);
+document.getElementById('prev').onclick=()=>go(cur-1);
+addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next.click();}
+  if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(cur-1);}
+  if(e.key==='n'||e.key==='N')document.body.classList.toggle('nohints');
+});
+</script>
+</body>
+</html>
